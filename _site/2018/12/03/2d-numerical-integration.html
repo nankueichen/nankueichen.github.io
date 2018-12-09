@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>2D numerical integration | notebook</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="2D numerical integration" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Here we illustrate the use of 2D numerical integration, which is path-independent, to recover a 2D matrix from partially known elements and gradient maps." />
+<meta property="og:description" content="Here we illustrate the use of 2D numerical integration, which is path-independent, to recover a 2D matrix from partially known elements and gradient maps." />
+<link rel="canonical" href="http://localhost:4000/2018/12/03/2d-numerical-integration.html" />
+<meta property="og:url" content="http://localhost:4000/2018/12/03/2d-numerical-integration.html" />
+<meta property="og:site_name" content="notebook" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-12-03T00:00:00-07:00" />
+<script type="application/ld+json">
+{"description":"Here we illustrate the use of 2D numerical integration, which is path-independent, to recover a 2D matrix from partially known elements and gradient maps.","@type":"BlogPosting","url":"http://localhost:4000/2018/12/03/2d-numerical-integration.html","headline":"2D numerical integration","dateModified":"2018-12-03T00:00:00-07:00","datePublished":"2018-12-03T00:00:00-07:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2018/12/03/2d-numerical-integration.html"},"@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="notebook" /><!-- Mathjax Support -->
+<script type="text/javascript" async
+  src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML">
+</script>
+
+  
+</head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">notebook</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/learning/">Learning</a><a class="page-link" href="/today/">Today</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">2D numerical integration</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2018-12-03T00:00:00-07:00" itemprop="datePublished">Dec 3, 2018
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>Here we illustrate the use of 2D numerical integration, which is path-independent, to recover a 2D matrix from partially known elements and gradient maps.</p>
+
+<h3 id="the-ground-truth-data">The ground truth data</h3>
+<p>The <script type="math/tex">4\times4</script> ground truth matrix (<script type="math/tex">\mathbf{M}</script>) to be reconstructed in this illustration is</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{M}=
+\left[ 
+\begin{array}{ccc} 
+m_{1,1} &  m_{1,2} & m_{1,3} & m_{1,4} \\ 
+m_{2,1} &  m_{2,2} & m_{2,3} & m_{2,4} \\ 
+m_{3,1} &  m_{3,2} & m_{3,3} & m_{3,4} \\ 
+m_{4,1} &  m_{4,2} & m_{4,3} & m_{4,4} \\ 
+\end{array} 
+\right]
+=
+\left[ 
+\begin{array}{ccc} 
+1 &  4 & 0 & 2 \\ 
+9 & 12 & 1 & 5 \\ 
+20 & 3 & 4 & 2 \\ 
+4 & 3 & 11 & 4 \\ 
+\end{array} 
+\right] %]]></script>
+
+<h3 id="question-how-to-recover-matrix-m-from-partially-known-elements-and-the-gradients">Question: how to recover matrix M from partially known elements and the gradients</h3>
+<p>Assuming that we only know the values of some matrix elements, while elements <script type="math/tex">m_{1,2}</script>, <script type="math/tex">m_{2,2}</script>, <script type="math/tex">m_{3,2}</script>, <script type="math/tex">m_{1,3}</script>, <script type="math/tex">m_{2,3}</script>, <script type="math/tex">m_{3,3}</script> are unknown:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\left[ 
+\begin{array}{ccc} 
+1 &  ? & ? & 2 \\ 
+9 & ? & ? & 5 \\ 
+20 & ? & ? & 2 \\ 
+4 & 3 & 11 & 4 \\ 
+\end{array} 
+\right] %]]></script>
+
+<p>Also assuming that we have the knowledge of element-wise difference (which is a simple kind of gradient measures) along both vertical and horizonal directions:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{M}_{d_{v}}=
+\left[ 
+\begin{array}{ccc} 
+8 & 8 & 1 &  3 \\ 
+11 & -9 & 3  & -3 \\ 
+-16 &  0 & 7  & 2 \\ 
+\end{array} 
+\right] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{M}_{d_h}=
+\left[ 
+\begin{array}{ccc} 
+3 &  -4 &  2 \\ 
+3 & -11  & 4 \\ 
+-17 & 1 & -2 \\ 
+-1 &  8 & -7 \\ 
+\end{array} 
+\right]
+=
+\left[ 
+\begin{array}{ccc} 
+3 &  3 &  -17 & -1 \\ 
+-4 & -11 & 1 & 8 \\ 
+2 &  4 & -2 & -7 \\ 
+\end{array} 
+\right]^T %]]></script>
+
+<p><em><strong>Our goal</strong></em> is to recover matrix <script type="math/tex">\mathbf{M}</script> from the two gradient maps and patially known matrix elements.</p>
+
+<h3 id="finding-a-solution-through-matrix-inversion">Finding a solution through matrix inversion</h3>
+<p>We could use matrix inversion to find matrix element values that simultaneously satisfy the vertical-gradient equation [1], the horizonal-gradient equation [2], and the boundary conditions [3]:</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{D_{v}} \: \mathbf{m} = 
+\left[ 
+\begin{array}{ccc} 
+8 & 8 & 1 &  3 & 
+11 & -9 & 3  & -3 &
+-16 &  0 & 7  & 2
+\end{array} 
+\right]^T
+\: \: \: \to[1] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{D_{h}} \: \mathbf{m} = 
+\left[ 
+\begin{array}{ccc} 
+3 &  3 &  -17 & -1 & 
+-4 & -11 & 1 & 8 &
+2 &  4 & -2 & -7 
+\end{array} 
+\right]^T
+\: \: \: \to[2] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{B} \: \mathbf{m} = 
+\left[ 
+\begin{array}{ccc} 
+1 & 9 & 20 & 4 & 0 & 0 & 0 & 3 & 0 & 0 & 0 &  11 & 2 & 5 & 2 & 4
+\end{array} 
+\right]^T
+\: \: \: \to[3] %]]></script>
+
+<p>where</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{D_{v}} = 
+\left[ 
+\begin{array}{ccc} 
+-1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 \\ 
+0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 \\ 
+0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 \\
+\end{array} 
+\right] 
+\: \: \: \to[4] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{D_{h}} = 
+\left[ 
+\begin{array}{ccc} 
+-1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\ 
+0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\ 
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 \\ 
+\end{array} 
+\right]
+\: \: \: \to[5] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{B}=
+\left[ 
+\begin{array}{ccc} 
+1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 1 \\
+\end{array} 
+\right]
+\: \: \: \to[6] %]]></script>
+
+<script type="math/tex; mode=display">\mathbf{m} = 
+\left[ 
+\begin{array}{ccc} 
+m_{1,1} \\  m_{2,1} \\ m_{3,1} \\ m_{4,1} \\ m_{1,2} \\  m_{2,2} \\ m_{3,2} \\ m_{4,2} \\ m_{1,3}  \\ m_{2,3}  \\ m_{3,3}  \\ m_{4,3}  \\ m_{1,4}  \\m_{2,4}  \\ m_{3,4} \\ m_{4,4} \\ 
+\end{array} 
+\right]
+\: \: \: \to[7]</script>
+
+<p>Note that Equations [1] to [3] could be combined, as shown in Equation [8]:</p>
+
+<script type="math/tex; mode=display">\mathbf{E} \: \mathbf{m} = \mathbf{v} \: \: \: \to [8]</script>
+
+<p>where <script type="math/tex">\mathbf{E}</script> is the vertical concatenation of <script type="math/tex">\mathbf{D_{v}}</script>, <script type="math/tex">\mathbf{D_{h}}</script>, and <script type="math/tex">\mathbf{B}</script>;<br />
+and <script type="math/tex">\mathbf{v}</script> is the vertical concatenation of the following three column vectors:
+<script type="math/tex">% <![CDATA[
+\left[ 
+\begin{array}{ccc} 
+8 & 8 & 1 &  3 & 
+11 & -9 & 3  & -3 &
+-16 &  0 & 7  & 2
+\end{array} 
+\right]^T %]]></script>
+,<br />
+<script type="math/tex">% <![CDATA[
+\left[ 
+\begin{array}{ccc} 
+3 &  3 &  -17 & -1 & 
+-4 & -11 & 1 & 8 &
+2 &  4 & -2 & -7
+\end{array} 
+\right]^T %]]></script>
+,<br />
+<script type="math/tex">% <![CDATA[
+\left[ 
+\begin{array}{ccc} 
+1 & 9 & 20 & 4 & 0 & 0 & 0 & 3 & 0 & 0 & 0 & 11 & 2 & 5 & 2 & 4
+\end{array} 
+\right]^T %]]></script></p>
+
+<p>The matrix <script type="math/tex">\mathbf{m}</script> could be recovered with Equation [9]:</p>
+
+<script type="math/tex; mode=display">\mathbf{m} = (\mathbf{E})^{-1} \: \mathbf{v} \: \: \: \to [9]</script>
+
+<h4 id="julia-codes">Julia codes:</h4>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<span class="n">M</span> <span class="o">=</span> <span class="x">[</span><span class="mi">1</span> <span class="mi">4</span> <span class="mi">0</span> <span class="mi">2</span><span class="x">;</span> <span class="mi">9</span> <span class="mi">12</span> <span class="mi">1</span> <span class="mi">5</span><span class="x">;</span> <span class="mi">20</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">2</span><span class="x">;</span> <span class="mi">4</span> <span class="mi">3</span> <span class="mi">11</span> <span class="mf">4.</span><span class="x">];</span>
+<span class="n">m</span> <span class="o">=</span> <span class="n">M</span><span class="x">[</span><span class="o">:</span><span class="x">];</span>
+<span class="n">Mdv</span> <span class="o">=</span> <span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">,</span><span class="n">dims</span><span class="o">=</span><span class="mi">1</span><span class="x">);</span>
+<span class="n">Mdh</span> <span class="o">=</span> <span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">,</span><span class="n">dims</span><span class="o">=</span><span class="mi">2</span><span class="x">);</span>
+<span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span> <span class="o">=</span> <span class="n">size</span><span class="x">(</span><span class="n">M</span><span class="x">);</span>
+<span class="n">selectMatrix</span> <span class="o">=</span> <span class="n">ones</span><span class="x">(</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">);</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">1</span><span class="x">,</span><span class="mi">2</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">1</span><span class="x">,</span><span class="mi">3</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">2</span><span class="x">,</span><span class="mi">2</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">2</span><span class="x">,</span><span class="mi">3</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">3</span><span class="x">,</span><span class="mi">2</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">3</span><span class="x">,</span><span class="mi">3</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">M_measured</span> <span class="o">=</span> <span class="n">M</span><span class="o">.*</span><span class="n">selectMatrix</span><span class="x">;</span>
+
+<span class="n">let</span>
+    <span class="kd">global</span> <span class="n">Dv</span> <span class="o">=</span> <span class="kt">Float64</span><span class="x">[]</span>
+    <span class="k">for</span> <span class="n">cntx</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">xdim</span><span class="o">-</span><span class="mi">1</span>
+        <span class="k">for</span> <span class="n">cnty</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">ydim</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">zeros</span><span class="x">(</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">)</span>
+            <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=-</span><span class="mi">1</span>
+            <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="o">+</span><span class="mi">1</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=</span><span class="mi">1</span><span class="x">;</span>
+            <span class="n">Dv</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">Dv</span><span class="x">,</span><span class="n">tmp</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+<span class="n">Dv</span> <span class="o">=</span> <span class="n">reshape</span><span class="x">(</span><span class="n">Dv</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="n">ydim</span><span class="x">,(</span><span class="n">xdim</span><span class="o">-</span><span class="mi">1</span><span class="x">)</span><span class="o">*</span><span class="n">ydim</span><span class="x">,);</span>
+<span class="n">Dv</span> <span class="o">=</span> <span class="n">transpose</span><span class="x">(</span><span class="n">Dv</span><span class="x">);</span>
+
+<span class="n">let</span>
+    <span class="kd">global</span> <span class="n">Dh</span> <span class="o">=</span> <span class="kt">Float64</span><span class="x">[]</span>
+    <span class="k">for</span> <span class="n">cnty</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">ydim</span><span class="o">-</span><span class="mi">1</span>
+        <span class="k">for</span> <span class="n">cntx</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">xdim</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">zeros</span><span class="x">(</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">)</span>
+            <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=-</span><span class="mi">1</span>
+            <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="o">+</span><span class="mi">1</span><span class="x">]</span><span class="o">=</span><span class="mi">1</span><span class="x">;</span>
+            <span class="n">Dh</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">Dh</span><span class="x">,</span><span class="n">tmp</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+<span class="n">Dh</span> <span class="o">=</span> <span class="n">reshape</span><span class="x">(</span><span class="n">Dh</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="n">ydim</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="x">(</span><span class="n">ydim</span><span class="o">-</span><span class="mi">1</span><span class="x">))</span>
+<span class="n">Dh</span> <span class="o">=</span> <span class="n">transpose</span><span class="x">(</span><span class="n">Dh</span><span class="x">);</span>
+
+<span class="k">using</span> <span class="n">LinearAlgebra</span>
+<span class="n">B</span> <span class="o">=</span> <span class="n">diagm</span><span class="x">(</span><span class="mi">0</span><span class="o">=&gt;</span><span class="n">selectMatrix</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+
+
+<span class="n">E</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">Dv</span><span class="x">,</span><span class="n">Dh</span><span class="x">,</span><span class="n">B</span><span class="x">);</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">transpose</span><span class="x">(</span><span class="n">Mdv</span><span class="x">)[</span><span class="o">:</span><span class="x">],</span><span class="n">Mdh</span><span class="x">[</span><span class="o">:</span><span class="x">],</span><span class="n">M_measured</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+
+<span class="n">M_recovered</span> <span class="o">=</span> <span class="n">reshape</span><span class="x">(</span><span class="n">E</span><span class="o">\</span><span class="n">v</span><span class="x">,</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">);</span>
+
+
+</code></pre></div></div>
+
+<h3 id="implementation-for-different-gradient-measures">Implementation for different gradient measures</h3>
+
+<p>Instead of simply computing the element-wise difference, we could use different approaches to measure gradients. For example, the gradient maps along the vertical and horizontal directions, <script type="math/tex">\mathbf{M}_{g_{v}}</script> and <script type="math/tex">\mathbf{M}_{g_{h}}</script>, could be computed with Equations [10] and [11], respectively.</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{M}_{g_{v}}=\mathbf{G_{v}} \: \mathbf{m}=
+\left[ 
+\begin{array}{ccc} 
+8 & 8 & 1 &  3 \\ 
+9.5 & -0.5 & 2  & 0 \\ 
+-2.5 &  -4.5 & 5  & -0.5 \\ 
+-16 & 0 & 7 & 2 \\
+\end{array} 
+\right]_{vec} \: \: \: \to[10] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{M}_{g_h}= \mathbf{G_{h}} \: \mathbf{m}=
+\left[ 
+\begin{array}{ccc} 
+3 &  -0.5 & -1 &  2 \\ 
+3 & -4 & -3.5 & 4 \\ 
+-17 & -8 & -0.5 & -2 \\ 
+-1 & 3.5 &  0.5 & -7 \\ 
+\end{array} 
+\right]_{vec} \: \: \: \to[11] %]]></script>
+
+<p>where</p>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{G_{v}} = 
+\left[ 
+\begin{array}{ccc} 
+-1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 \\ 
+-0.5 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & -0.5 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0.5 & 0 \\
+0 & -0.5 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0.5 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0.5 \\
+0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 1 \\
+\end{array} 
+\right]
+\: \: \: \to[12] %]]></script>
+
+<script type="math/tex; mode=display">% <![CDATA[
+\mathbf{G_{h}} = 
+\left[ 
+\begin{array}{ccc} 
+-1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\ 
+-0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 & 0 & 0 & 0 & 0 \\
+0 & 0 & 0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 & 0 & 0 & 0 \\ 
+0 & 0 & 0 & 0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & -0.5 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0.5 \\ 
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 & 0 \\
+0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -1 & 0 & 0 & 0 & 1 \\ 
+\end{array} 
+\right]
+\: \: \: \to[13] %]]></script>
+
+<h4 id="julia-codes-1">Julia codes:</h4>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">M</span> <span class="o">=</span> <span class="x">[</span><span class="mi">1</span> <span class="mi">4</span> <span class="mi">0</span> <span class="mi">2</span><span class="x">;</span> <span class="mi">9</span> <span class="mi">12</span> <span class="mi">1</span> <span class="mi">5</span><span class="x">;</span> <span class="mi">20</span> <span class="mi">3</span> <span class="mi">4</span> <span class="mi">2</span><span class="x">;</span> <span class="mi">4</span> <span class="mi">3</span> <span class="mi">11</span> <span class="mf">4.</span><span class="x">];</span>
+<span class="n">m</span> <span class="o">=</span> <span class="n">M</span><span class="x">[</span><span class="o">:</span><span class="x">];</span>
+<span class="n">Mgv</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">,</span><span class="n">dims</span><span class="o">=</span><span class="mi">1</span><span class="x">)[</span><span class="mi">1</span><span class="x">,</span><span class="o">:</span><span class="x">]</span><span class="err">'</span><span class="x">,(</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">[</span><span class="mi">1</span><span class="o">:</span><span class="k">end</span><span class="o">-</span><span class="mi">1</span><span class="x">,</span><span class="o">:</span><span class="x">],</span><span class="n">dims</span><span class="o">=</span><span class="mi">1</span><span class="x">)</span><span class="o">+</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">[</span><span class="mi">2</span><span class="o">:</span><span class="k">end</span><span class="x">,</span><span class="o">:</span><span class="x">],</span><span class="n">dims</span><span class="o">=</span><span class="mi">1</span><span class="x">))</span><span class="o">/</span><span class="mf">2.</span><span class="x">,</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">,</span><span class="n">dims</span><span class="o">=</span><span class="mi">1</span><span class="x">)[</span><span class="k">end</span><span class="x">,</span><span class="o">:</span><span class="x">]</span><span class="err">'</span><span class="x">);</span>
+<span class="n">Mgh</span> <span class="o">=</span> <span class="n">hcat</span><span class="x">(</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">,</span><span class="n">dims</span><span class="o">=</span><span class="mi">2</span><span class="x">)[</span><span class="o">:</span><span class="x">,</span><span class="mi">1</span><span class="x">],(</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">[</span><span class="o">:</span><span class="x">,</span><span class="mi">1</span><span class="o">:</span><span class="k">end</span><span class="o">-</span><span class="mi">1</span><span class="x">],</span><span class="n">dims</span><span class="o">=</span><span class="mi">2</span><span class="x">)</span><span class="o">+</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">[</span><span class="o">:</span><span class="x">,</span><span class="mi">2</span><span class="o">:</span><span class="k">end</span><span class="x">],</span><span class="n">dims</span><span class="o">=</span><span class="mi">2</span><span class="x">))</span><span class="o">/</span><span class="mf">2.</span><span class="x">,</span><span class="n">diff</span><span class="x">(</span><span class="n">M</span><span class="x">,</span><span class="n">dims</span><span class="o">=</span><span class="mi">2</span><span class="x">)[</span><span class="o">:</span><span class="x">,</span><span class="k">end</span><span class="x">]);</span>
+<span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span> <span class="o">=</span> <span class="n">size</span><span class="x">(</span><span class="n">M</span><span class="x">);</span>
+
+<span class="n">selectMatrix</span> <span class="o">=</span> <span class="n">ones</span><span class="x">(</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">);</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">1</span><span class="x">,</span><span class="mi">2</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">1</span><span class="x">,</span><span class="mi">3</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">2</span><span class="x">,</span><span class="mi">2</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">2</span><span class="x">,</span><span class="mi">3</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">3</span><span class="x">,</span><span class="mi">2</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">selectMatrix</span><span class="x">[</span><span class="mi">3</span><span class="x">,</span><span class="mi">3</span><span class="x">]</span><span class="o">=</span><span class="mi">0</span><span class="x">;</span>
+<span class="n">M_measured</span> <span class="o">=</span> <span class="n">M</span><span class="o">.*</span><span class="n">selectMatrix</span><span class="x">;</span>
+
+<span class="n">let</span>
+    <span class="kd">global</span> <span class="n">Gv</span> <span class="o">=</span> <span class="kt">Float64</span><span class="x">[]</span>
+    <span class="k">for</span> <span class="n">cntx</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">xdim</span>
+        <span class="k">for</span> <span class="n">cnty</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">ydim</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">zeros</span><span class="x">(</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">)</span>
+            <span class="k">if</span> <span class="n">cntx</span> <span class="o">==</span> <span class="mi">1</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=-</span><span class="mi">1</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="o">+</span><span class="mi">1</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=</span><span class="mi">1</span><span class="x">;</span>
+            <span class="k">elseif</span> <span class="n">cntx</span> <span class="o">==</span> <span class="n">xdim</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="o">-</span><span class="mi">1</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=-</span><span class="mi">1</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=</span><span class="mi">1</span><span class="x">;</span>
+            <span class="k">else</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="o">-</span><span class="mi">1</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=-</span><span class="mf">0.5</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="o">+</span><span class="mi">1</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=</span><span class="mf">0.5</span>
+            <span class="k">end</span>
+            <span class="n">Gv</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">Gv</span><span class="x">,</span><span class="n">tmp</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+<span class="n">Gv</span> <span class="o">=</span> <span class="n">reshape</span><span class="x">(</span><span class="n">Gv</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="n">ydim</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="n">ydim</span><span class="x">);</span>
+<span class="n">Gv</span> <span class="o">=</span> <span class="n">transpose</span><span class="x">(</span><span class="n">Gv</span><span class="x">);</span>
+
+<span class="n">let</span>
+    <span class="kd">global</span> <span class="n">Gh</span> <span class="o">=</span> <span class="kt">Float64</span><span class="x">[]</span>
+    <span class="k">for</span> <span class="n">cnty</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">ydim</span>
+        <span class="k">for</span> <span class="n">cntx</span> <span class="o">=</span> <span class="mi">1</span><span class="o">:</span><span class="n">xdim</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">zeros</span><span class="x">(</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">)</span>
+            <span class="k">if</span> <span class="n">cnty</span> <span class="o">==</span> <span class="mi">1</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=-</span><span class="mi">1</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="o">+</span><span class="mi">1</span><span class="x">]</span><span class="o">=</span><span class="mi">1</span><span class="x">;</span>
+            <span class="k">elseif</span> <span class="n">cnty</span> <span class="o">==</span> <span class="n">ydim</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="o">-</span><span class="mi">1</span><span class="x">]</span><span class="o">=-</span><span class="mi">1</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="x">]</span><span class="o">=</span><span class="mi">1</span><span class="x">;</span>
+            <span class="k">else</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="o">-</span><span class="mi">1</span><span class="x">]</span><span class="o">=-</span><span class="mf">0.5</span>
+                <span class="n">tmp</span><span class="x">[</span><span class="n">cntx</span><span class="x">,</span><span class="n">cnty</span><span class="o">+</span><span class="mi">1</span><span class="x">]</span><span class="o">=</span><span class="mf">0.5</span><span class="x">;</span>
+            <span class="k">end</span>
+            <span class="n">Gh</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">Gh</span><span class="x">,</span><span class="n">tmp</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+        <span class="k">end</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+<span class="n">Gh</span> <span class="o">=</span> <span class="n">reshape</span><span class="x">(</span><span class="n">Gh</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="n">ydim</span><span class="x">,</span><span class="n">xdim</span><span class="o">*</span><span class="n">ydim</span><span class="x">)</span>
+<span class="n">Gh</span> <span class="o">=</span> <span class="n">transpose</span><span class="x">(</span><span class="n">Gh</span><span class="x">);</span>
+
+<span class="k">using</span> <span class="n">LinearAlgebra</span>
+<span class="n">B</span> <span class="o">=</span> <span class="n">diagm</span><span class="x">(</span><span class="mi">0</span><span class="o">=&gt;</span><span class="n">selectMatrix</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+
+
+<span class="n">E</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">Gv</span><span class="x">,</span><span class="n">Gh</span><span class="x">,</span><span class="n">B</span><span class="x">);</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">vcat</span><span class="x">(</span><span class="n">transpose</span><span class="x">(</span><span class="n">Mgv</span><span class="x">)[</span><span class="o">:</span><span class="x">],</span><span class="n">Mgh</span><span class="x">[</span><span class="o">:</span><span class="x">],</span><span class="n">M_measured</span><span class="x">[</span><span class="o">:</span><span class="x">]);</span>
+
+<span class="n">M_recovered</span> <span class="o">=</span> <span class="n">reshape</span><span class="x">(</span><span class="n">E</span><span class="o">\</span><span class="n">v</span><span class="x">,</span><span class="n">xdim</span><span class="x">,</span><span class="n">ydim</span><span class="x">);</span>
+</code></pre></div></div>
+
+<h3 id="application-to-mri-data">Application to MRI data</h3>
+<ul>
+  <li>See this <a href="https://gist.github.com/nankueichen/021c703e0c5748ca3b3fb7ca4c301a94">implementation</a></li>
+  <li>File location: <code class="highlighter-rouge">/Users/nkchen/Dropbox/now/FT_phase_unwrapping/main2.jl</code>(julia) and <code class="highlighter-rouge">/Users/nkchen/Dropbox/now/FT_phase_unwrapping/main2.m</code> (matlab)</li>
+</ul>
+
+  </div><a class="u-url" href="/2018/12/03/2d-numerical-integration.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+<!--     <h2 class="footer-heading">notebook</h2>
+ -->
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name"><!-- notebook --></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Nan-kuei Chen</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
