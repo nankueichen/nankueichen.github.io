@@ -444,3 +444,7 @@ v = vcat(transpose(Mgv)[:],Mgh[:],M_measured[:]);
 
 M_recovered = reshape(E\v,xdim,ydim);
 ```
+
+### Application of 2D numerical integration
+* We have implemented the `twoDimIntegration` function in [matlab](https://github.com/nankueichen/Fourier_space_phase_unwrapping/blob/master/matlabfunction/twoDimIntegration.m) and [julia](https://github.com/nankueichen/Fourier_space_phase_unwrapping/blob/master/juliafunction/myFun.jl), to calculate wrap free phase values from phase gradients and boundary conditions: see [maltab codes](https://github.com/nankueichen/Fourier_space_phase_unwrapping/blob/master/main_single_patchsize.m) and [julia codes] (https://github.com/nankueichen/Fourier_space_phase_unwrapping/blob/master/main_single_patchsize.jl).
+
