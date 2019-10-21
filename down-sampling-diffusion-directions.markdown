@@ -3,7 +3,11 @@ title: Down-sampling diffusion encoding directions
 layout: post
 ---
 
-Diffusion MRI data are typically acquired with a series of diffusion encoding directions, corresponding to different b values, for the targeted analyses (e.g., diffusion tensor imaging; and HARDI reconstruction, among others). For example, MRI protocols with 30 diffusion-encoding directions and $$b=1000 \frac{s}{mm^2} $$ with many of the diffusion-tensor imaging project
+Diffusion MRI data are typically acquired with a series of diffusion encoding directions, corresponding to different b values, for the targeted analyses (e.g., diffusion tensor imaging,  DSI, HARDI and q-ball reconstruction among others). For example, MRI protocols with 30 diffusion-encoding directions at $$b=1000 \frac{s}{mm^2}$$ have been used in many diffusion-tensor imaging projects, and protocols with a higher angular-resolution (i.e., more diffusion-encoding directions) at multiple b values are generally needed for high-order reconstruction (e.g., DSI).   
+
+For research projects that analyze data obtained with different protocols, one might need to down-sample higher angular-resolution diffusion MRI data (with more diffusion directions) to lower angular-resolution (with few directions), in a way that the down-sampled encoding schemes are similar across data sets.
+
+In this [page]() we used a matlab script to down-sample a high angular-resolution scheme defined by ['more_directions.txt']() to 30 directions, which resemble the scheme defined in ['fewer_directions.txt'](). Basically, for each of the diffusion-encoding directions defined in ['fewer_directions.txt'](), we use the `dot()` function (inner product) in matlab to find the most similar one among all diffusion-encoding directions defined in ['more_directions.txt'](). Note that two diffusion encoding directions are considered the same, when the inner product is either 1 or -1 (because diffusion encoding schemes `[1,0,0]` and `[-1,0,0]` have the same effect on diffusion signals).
 
 
 #### Matlab codes:
