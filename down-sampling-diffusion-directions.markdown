@@ -3,7 +3,7 @@ title: Down-sampling diffusion encoding directions
 layout: post
 ---
 
-Diffusion MRI data are typically acquired with a series of diffusion encoding directions, corresponding to one or more b values, for the targeted analyses (e.g., diffusion tensor imaging,  DSI, HARDI and q-ball reconstruction among others). For example, MRI protocols with 30 diffusion-encoding directions at $$b=1000 \frac{s}{mm^2}$$ have been used in many diffusion-tensor imaging projects, and protocols with a higher angular-resolution (i.e., more diffusion-encoding directions) at multiple b values are generally needed for high-order reconstruction (e.g., DSI).   
+Diffusion MRI data are typically acquired with a series of diffusion encoding directions, corresponding to one or more b values, for the targeted analyses (e.g., diffusion tensor imaging,  DSI, HARDI and q-ball reconstruction among others). For example, 1) MRI protocols with 30 diffusion-encoding directions at $$b=1000 \frac{s}{mm^2}$$ have been used in many diffusion-tensor imaging projects; and 2) protocols with a higher angular-resolution (i.e., more diffusion-encoding directions) at multiple b values are generally needed for high-order reconstruction (e.g., DSI).   
 
 For research projects that analyze data obtained with different protocols, one might need to down-sample higher angular-resolution diffusion MRI data (with more diffusion directions) to lower angular-resolution (with few directions), in a way that the down-sampled encoding schemes are similar across data sets.
 
